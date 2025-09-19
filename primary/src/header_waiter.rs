@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::error::{DagError, DagResult};
-use crate::messages::{ConsensusMessage, Header, Proposal, proposal_digest};
+use crate::messages::{proposal_digest, ConsensusMessage, Header, Proposal};
 use crate::primary::{Height, PrimaryMessage, PrimaryWorkerMessage};
 use bytes::Bytes;
 use config::{Committee, WorkerId};
@@ -99,6 +99,8 @@ impl HeaderWaiter {
         use_fast_sync: bool,
         use_optimistic_tips: bool,
     ) {
+        let our_id = committee.index(&name);
+
         tokio::spawn(async move {
             Self {
                 name,
@@ -112,7 +114,7 @@ impl HeaderWaiter {
                 tx_core,
                 tx_consensus_loopback,
                 //network: SimpleSender::new(),
-                network: ReliableSender::new(),
+                network: ReliableSender::new(our_id),
                 parent_requests: HashMap::new(),
                 header_requests: HashMap::new(),
                 batch_requests: HashMap::new(),
@@ -144,7 +146,6 @@ impl HeaderWaiter {
             _ = handler.recv() => Ok(None),
         }
     }
-
 
     async fn proposal_waiter(
         mut missing: Vec<(Vec<u8>, Store)>,
@@ -239,7 +240,7 @@ impl HeaderWaiter {
                                         .expect("Author of valid header is not in the committee")
                                         .primary_to_worker;
                                     debug!("Sent syncbatches message for height {}, digests {:?}", round, digests);
-                                    
+
                                     let message = PrimaryWorkerMessage::Synchronize(digests, author);
                                     let bytes = bincode::serialize(&message)
                                         .expect("Failed to serialize batch sync request");
@@ -306,7 +307,7 @@ impl HeaderWaiter {
                                 .expect("Failed to measure time")
                                 .as_millis();
 
-                            
+
 
                             // Check whether we should send a fast sync request to the network to avoid duplicate sync requests
                             if self.use_fast_sync {
@@ -314,7 +315,7 @@ impl HeaderWaiter {
                                 if should_sync {
                                     debug!("send a fast sync parent request with height {}, lower bound {}", height, lower_bound);
                                     let mut requires_sync = Vec::new();
-                                    
+
                                     self.parent_requests.entry(missing.clone()).or_insert_with(|| {
                                         requires_sync.push((missing.clone(), lower_bound));
                                         (lower_bound, now)
@@ -330,7 +331,7 @@ impl HeaderWaiter {
                                     self.cancel_handlers.push(handler);
                                 } else {
                                     debug!("already sent fast sync request do not send duplicate");
-                                } 
+                                }
                             } else {
                                 // Ensure we didn't already sent a sync request for these parents.
                                 // Optimistically send the sync request to the node that created the certificate.
@@ -351,7 +352,7 @@ impl HeaderWaiter {
                                     self.cancel_handlers.push(handler);
 
                                 }
-                            }                            
+                            }
                         }
 
 
@@ -370,7 +371,7 @@ impl HeaderWaiter {
                             }
 
                             debug!("use fast sync is {}", self.use_fast_sync);
-                            
+
                             // If optimistic tips enabled and it's a prepare message, use the optimistic tip waiter
                             match consensus_message {
                                 ConsensusMessage::Prepare { slot, view: _, tc: _, qc_ticket: _, proposals: _,} => {
@@ -422,7 +423,7 @@ impl HeaderWaiter {
                                     proposal_waiting.push(fut);
                                 }
                             }
-                            
+
                             let now = SystemTime::now()
                                 .duration_since(UNIX_EPOCH)
                                 .expect("Failed to measure time")
@@ -431,7 +432,7 @@ impl HeaderWaiter {
                             // Check whether we should send a fast sync request to the network to avoid duplicate sync requests
                             if self.use_fast_sync {
                                 let mut requires_sync = Vec::new();
-                                
+
                                 for (pk, proposal, lower_bound) in missing {
                                     debug!("send a fast sync proposal request with height {}, lower bound {}", proposal.height, lower_bound);
                                     debug!("opt digest sync is {:?}", proposal.header_digest);
@@ -459,13 +460,13 @@ impl HeaderWaiter {
                                     self.cancel_handlers.push(handler);
                                     /*let addresses = self.committee.others_primaries(&self.name).iter().map(|(_, x)| x.primary_to_primary).collect();
                                     self.network.lucky_broadcast(addresses, Bytes::from(bytes), self.sync_retry_nodes).await;*/
-                                    
+
                                 }
                             } else {
                                 // Ensure we didn't already sent a sync request for these parents.
                                 // Optimistically send the sync request to the node that created the certificate.
                                 // If this fails (after a timeout), we broadcast the sync request.
-                                
+
                                 let mut requires_sync = Vec::new();
                                 for (_, missing, _) in missing {
                                     self.parent_requests.entry(missing.header_digest.clone()).or_insert_with(|| {
@@ -486,7 +487,7 @@ impl HeaderWaiter {
                                     /*let addresses = self.committee.others_primaries(&self.name).iter().map(|(_, x)| x.primary_to_primary).collect();
                                     self.network.lucky_broadcast(addresses, Bytes::from(bytes), self.sync_retry_nodes).await;*/
                                 }
-                            }                            
+                            }
                         }
                     }
                 },
@@ -531,7 +532,7 @@ impl HeaderWaiter {
                             debug!("removing prop digest {:?}", prop.header_digest);
                             let _ = self.parent_requests.remove(&prop.header_digest);
                         }
-                        
+
                         debug!("wake up normal proposals");
                         self.tx_consensus_loopback.send(deliver).await.expect("Failed to send header");
                     },
@@ -618,7 +619,7 @@ impl HeaderWaiter {
                         let bytes = bincode::serialize(&message).expect("Failed to serialize cert request");
                         let handlers = self.network.lucky_broadcast(addresses, Bytes::from(bytes), self.sync_retry_nodes).await;
                         self.cancel_handlers.extend(handlers);
-            
+
                     } else {
                         let message = PrimaryMessage::HeadersRequest(retry, self.name);
                         let bytes = bincode::serialize(&message).expect("Failed to serialize cert request");
@@ -626,7 +627,7 @@ impl HeaderWaiter {
 
                         self.cancel_handlers.extend(handlers);
                     }
-                    
+
                     // Reschedule the timer.
                     timer.as_mut().reset(Instant::now() + Duration::from_millis(TIMER_RESOLUTION));
                 }

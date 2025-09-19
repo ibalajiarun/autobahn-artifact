@@ -11,7 +11,7 @@ async fn send() {
     let handle = listener(address, message.to_string());
 
     // Make the network sender and send the message.
-    let mut sender = ReliableSender::new();
+    let mut sender = ReliableSender::new(0);
     let cancel_handler = sender.send(address, Bytes::from(message)).await;
 
     // Ensure we get back an acknowledgement.
@@ -37,7 +37,7 @@ async fn broadcast() {
         .unzip();
 
     // Make the network sender and send the message.
-    let mut sender = ReliableSender::new();
+    let mut sender = ReliableSender::new(0);
     let cancel_handlers = sender.broadcast(addresses, Bytes::from(message)).await;
 
     // Ensure we get back an acknowledgement for each message.
@@ -52,7 +52,7 @@ async fn retry() {
     // Make the network sender and send the message  (no listeners are running).
     let address = "127.0.0.1:5300".parse::<SocketAddr>().unwrap();
     let message = "Hello, world!";
-    let mut sender = ReliableSender::new();
+    let mut sender = ReliableSender::new(0);
     let cancel_handler = sender.send(address, Bytes::from(message)).await;
 
     // Run a TCP server.

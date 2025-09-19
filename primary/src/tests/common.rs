@@ -1,9 +1,9 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
-use crate::messages::{Certificate, Header, Vote, ConsensusMessage};
+use crate::messages::{Certificate, ConsensusMessage, Header, Vote};
 use bytes::Bytes;
 use config::{Authority, Committee, ConsensusAddresses, PrimaryAddresses, WorkerAddresses};
-use crypto::{Hash as _, Digest};
 use crypto::{generate_keypair, PublicKey, SecretKey, Signature};
+use crypto::{Digest, Hash as _};
 use futures::sink::SinkExt as _;
 use futures::stream::StreamExt as _;
 use rand::rngs::StdRng;
@@ -15,13 +15,11 @@ use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
-
 // Fixture
 pub fn keys() -> Vec<(PublicKey, SecretKey)> {
     let mut rng = StdRng::from_seed([0; 32]);
     (0..4).map(|_| generate_keypair(&mut rng)).collect()
 }
-
 
 // Fixture
 pub fn committee() -> Committee {
@@ -55,6 +53,7 @@ pub fn committee() -> Committee {
                         consensus,
                         primary,
                         workers,
+                        index: i,
                     },
                 )
             })
@@ -94,11 +93,14 @@ pub fn header() -> Header {
     let header = Header {
         author,
         height: 1,
-        parent_cert: Certificate::genesis_certs(&committee()).get(&author).unwrap().clone(),
+        parent_cert: Certificate::genesis_certs(&committee())
+            .get(&author)
+            .unwrap()
+            .clone(),
         /*parent_cert_digest: Certificate::genesis(&committee())
-            .iter()
-            .map(|x| x.digest())
-            .collect(),*/
+        .iter()
+        .map(|x| x.digest())
+        .collect(),*/
         ..Header::default()
     };
     Header {
@@ -109,7 +111,10 @@ pub fn header() -> Header {
 }
 
 // Fixture
-pub fn special_header(parent_cert: Certificate, consensus_messages: HashMap<Digest, ConsensusMessage>) -> Header {
+pub fn special_header(
+    parent_cert: Certificate,
+    consensus_messages: HashMap<Digest, ConsensusMessage>,
+) -> Header {
     let (author, secret) = keys().pop().unwrap();
     //let par = vec![header().id];
     //let par = vec![Header::default().id];
@@ -120,7 +125,7 @@ pub fn special_header(parent_cert: Certificate, consensus_messages: HashMap<Dige
         consensus_messages,
         //parents: par.iter().cloned().collect(),
 
-        //defaults: payload, parent, 
+        //defaults: payload, parent,
         ..Header::default()
     };
     Header {
@@ -138,11 +143,13 @@ pub fn headers() -> Vec<Header> {
             let header = Header {
                 author,
                 height: 1,
-                parent_cert: Certificate::genesis_certs(&committee()).get(&author).unwrap().clone(),
-                    /*.iter()
-                    .map(|x| x.digest())
-                    .collect(),*/
-
+                parent_cert: Certificate::genesis_certs(&committee())
+                    .get(&author)
+                    .unwrap()
+                    .clone(),
+                /*.iter()
+                .map(|x| x.digest())
+                .collect(),*/
                 ..Header::default()
             };
             Header {
@@ -155,7 +162,10 @@ pub fn headers() -> Vec<Header> {
 }
 
 pub fn header_from_cert(certificate: &Certificate) -> Header {
-    let mut right_key: Vec<(PublicKey, SecretKey)> = keys().into_iter().filter(|(pk, sk)| *pk == certificate.author).collect();
+    let mut right_key: Vec<(PublicKey, SecretKey)> = keys()
+        .into_iter()
+        .filter(|(pk, sk)| *pk == certificate.author)
+        .collect();
     let secret = right_key.pop().unwrap().1;
 
     let header = Header {
@@ -170,9 +180,7 @@ pub fn header_from_cert(certificate: &Certificate) -> Header {
         signature: Signature::new(&header.digest(), &secret),
         ..header
     }
-
 }
-
 
 // Fixture
 pub fn votes(header: &Header) -> Vec<Vote> {
@@ -206,10 +214,13 @@ pub fn special_votes(header: &Header, consensus_digests: Vec<Digest>) -> Vec<Vot
                 origin: header.author,
                 author,
                 signature: Signature::default(),
-                consensus_votes: consensus_digests.iter().map(|x| (1, x.clone(), Signature::new(x, &secret))).collect(), //Give them all "slot 1" for testing
+                consensus_votes: consensus_digests
+                    .iter()
+                    .map(|x| (1, x.clone(), Signature::new(x, &secret)))
+                    .collect(), //Give them all "slot 1" for testing
 
-                //qc: None,
-                //tc: None,
+                                //qc: None,
+                                //tc: None,
             };
             Vote {
                 signature: Signature::new(&vote.digest(), &secret),
@@ -261,7 +272,6 @@ pub fn listener(address: SocketAddr) -> JoinHandle<Bytes> {
         }
     })
 }
-
 
 //Consensus message_tests
 

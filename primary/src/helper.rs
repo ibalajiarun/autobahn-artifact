@@ -3,7 +3,7 @@ use crate::{primary::PrimaryMessage, Header, Height};
 use bytes::Bytes;
 use config::Committee;
 use crypto::{Digest, Hash, PublicKey};
-use log::{error, warn, debug};
+use log::{debug, error, warn};
 use network::{CancelHandler, ReliableSender, SimpleSender};
 use store::Store;
 use tokio::sync::mpsc::Receiver;
@@ -45,7 +45,7 @@ impl Helper {
                 rx_primaries_headers,
                 rx_primaries_fast_sync_headers,
                 //network: SimpleSender::new(),
-                network: ReliableSender::new(),
+                network: ReliableSender::new(1000),
                 cancel_handlers: Vec::new(),
             }
             .run()
@@ -54,11 +54,11 @@ impl Helper {
     }
 
     async fn run(&mut self) {
-        loop{
+        loop {
             tokio::select! {
                 Some((digests, origin)) = self.rx_primaries_certs.recv() => {
                     // TODO [issue #195]: Do some accounting to prevent bad nodes from monopolizing our resources.
-        
+
                     // get the requestors address.
                     let address = match self.committee.primary(&origin) {
                         Ok(x) => x.primary_to_primary,
@@ -67,7 +67,7 @@ impl Helper {
                             continue;
                         }
                     };
-        
+
                     // Reply to the request (the best we can).
                     for digest in digests {
                         match self.store.read(digest.to_vec()).await {
@@ -87,7 +87,7 @@ impl Helper {
                 },
                 Some((digests, origin)) = self.rx_primaries_headers.recv() => {
                     // TODO [issue #195]: Do some accounting to prevent bad nodes from monopolizing our resources.
-        
+
                     // get the requestors address.
                     let address = match self.committee.primary(&origin) {
                         Ok(x) => x.primary_to_primary,
@@ -96,7 +96,7 @@ impl Helper {
                             continue;
                         }
                     };
-        
+
                     // Reply to the request (the best we can).
                     for digest in digests {
                         match self.store.read(digest.to_vec()).await {
@@ -113,11 +113,11 @@ impl Helper {
                                 Err(e) => error!("{}", e),
                         }
                     }
-                    
+
                 },
                 Some((missing, origin)) = self.rx_primaries_fast_sync_headers.recv() => {
                     // TODO [issue #195]: Do some accounting to prevent bad nodes from monopolizing our resources.
-        
+
                     // get the requestors address.
                     let address = match self.committee.primary(&origin) {
                         Ok(x) => x.primary_to_primary,
@@ -135,15 +135,15 @@ impl Helper {
                                 debug!("fast sync request handled success");
                                 let header: Header = bincode::deserialize(&data)
                                     .expect("Failed to deserialize our own certificate");
-                                
+
                                 let mut height = header.height() - 1;
                                 let mut parent_digest = header.parent_cert.header_digest.clone();
-                                
+
                                 let bytes = bincode::serialize(&PrimaryMessage::Header(header, true))  //sync = true
                                     .expect("Failed to serialize our own certificate");
                                 let handler = self.network.send(address, Bytes::from(bytes)).await;
                                 self.cancel_handlers.push(handler);
-                                
+
                                 // Since we have the header in the store, we must have all of its ancestors
                                 // Send sync replies for all ancestors until we reach the lower bound
                                 while height > lower_bound {
@@ -156,7 +156,7 @@ impl Helper {
                                     let handler = self.network.send(address, Bytes::from(bytes)).await;
                                     self.cancel_handlers.push(handler);
                                     height -= 1;
-                                }                                                           
+                                }
                             }
                             Ok(None) => (),
                             Err(e) => error!("{}", e),
@@ -165,6 +165,5 @@ impl Helper {
                 },
             };
         }
-       
     }
 }
