@@ -44,11 +44,11 @@ impl Helper {
     }
 
     async fn run(&mut self) {
-        loop{
+        loop {
             tokio::select! {
                 Some((digests, origin)) = self.rx_primaries_certs.recv() => {
                     // TODO [issue #195]: Do some accounting to prevent bad nodes from monopolizing our resources.
-        
+
                     // get the requestors address.
                     let address = match self.committee.primary(&origin) {
                         Ok(x) => x.primary_to_primary,
@@ -57,7 +57,7 @@ impl Helper {
                             continue;
                         }
                     };
-        
+
                     // Reply to the request (the best we can).
                     for digest in digests {
                         match self.store.read(digest.to_vec()).await {
@@ -76,7 +76,7 @@ impl Helper {
                 },
                 Some((digests, origin)) = self.rx_primaries_headers.recv() => {
                     // TODO [issue #195]: Do some accounting to prevent bad nodes from monopolizing our resources.
-        
+
                     // get the requestors address.
                     let address = match self.committee.primary(&origin) {
                         Ok(x) => x.primary_to_primary,
@@ -85,7 +85,7 @@ impl Helper {
                             continue;
                         }
                     };
-        
+
                     // Reply to the request (the best we can).
                     for digest in digests {
                         match self.store.read(digest.to_vec()).await {
@@ -101,10 +101,9 @@ impl Helper {
                                 Err(e) => error!("{}", e),
                         }
                     }
-                    
+
                 },
             };
         }
-       
     }
 }

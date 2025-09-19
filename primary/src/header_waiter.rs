@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::error::{DagError, DagResult};
-use crate::messages::{ConsensusMessage, Header, Proposal, proposal_digest};
+use crate::messages::{proposal_digest, ConsensusMessage, Header, Proposal};
 use crate::primary::{Height, PrimaryMessage, PrimaryWorkerMessage};
 use bytes::Bytes;
 use config::{Committee, WorkerId};
@@ -90,6 +90,8 @@ impl HeaderWaiter {
         tx_core: Sender<Header>,
         tx_consensus_loopback: Sender<(ConsensusMessage, Header)>,
     ) {
+        let our_id = committee.index(&name);
+
         tokio::spawn(async move {
             Self {
                 name,
@@ -131,7 +133,6 @@ impl HeaderWaiter {
             _ = handler.recv() => Ok(None),
         }
     }
-
 
     async fn proposal_waiter(
         mut missing: Vec<(Vec<u8>, Store)>,
@@ -371,7 +372,7 @@ impl HeaderWaiter {
                         for (_, prop) in possibly_missing.iter() {
                             let _ = self.parent_requests.remove(&prop.header_digest);
                         }
-                     
+
                         self.tx_consensus_loopback.send(deliver).await.expect("Failed to send header");
                     },
                     Ok(None) => {

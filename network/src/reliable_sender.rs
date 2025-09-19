@@ -6,11 +6,12 @@ use futures::stream::StreamExt as _;
 use log::{info, warn};
 use rand::prelude::SliceRandom as _;
 use rand::rngs::SmallRng;
-use rand::SeedableRng as _;
+use rand::{thread_rng, RngCore, SeedableRng as _};
 use std::cmp::min;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 use std::net::SocketAddr;
+use std::time::Instant;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::oneshot;
@@ -33,19 +34,23 @@ pub struct ReliableSender {
     connections: HashMap<SocketAddr, Sender<InnerMessage>>,
     /// Small RNG just used to shuffle nodes and randomize connections (not crypto related).
     rng: SmallRng,
+    our_id: usize,
+    start: Instant,
 }
 
-impl std::default::Default for ReliableSender {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// impl std::default::Default for ReliableSender {
+//     fn default() -> Self {
+//         Self::new()
+//     }
+// }
 
 impl ReliableSender {
-    pub fn new() -> Self {
+    pub fn new(our_id: usize) -> Self {
         Self {
             connections: HashMap::new(),
             rng: SmallRng::from_entropy(),
+            our_id,
+            start: Instant::now(),
         }
     }
 
@@ -56,9 +61,21 @@ impl ReliableSender {
         tx
     }
 
+    fn drop_message(&mut self) -> bool {
+        if self.start.elapsed() > Duration::from_secs(150) && self.our_id < 5 {
+            let pct = self.rng.next_u32() % 100;
+            return pct < 1;
+        }
+        false
+    }
+
     /// Reliably send a message to a specific address.
     pub async fn send(&mut self, address: SocketAddr, data: Bytes) -> CancelHandler {
         let (sender, receiver) = oneshot::channel();
+        if self.drop_message() {
+            return receiver;
+        }
+
         self.connections
             .entry(address)
             .or_insert_with(|| Self::spawn_connection(address))

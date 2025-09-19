@@ -1,5 +1,5 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
-use crypto::{generate_production_keypair, PublicKey, SecretKey, Hash};
+use crypto::{generate_production_keypair, Hash, PublicKey, SecretKey};
 use log::info;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -83,12 +83,12 @@ pub struct Parameters {
     pub max_batch_delay: u64,
 
     //Autobahn protocol config parameters
-    pub use_optimistic_tips: bool,     //default = true (TODO: implement non optimistic tip option)
-    
-    pub use_parallel_proposals: bool,  //default = true (TODO: implement sequential slot option)
-    pub k: u64, //Max open conensus instances at a time.
+    pub use_optimistic_tips: bool, //default = true (TODO: implement non optimistic tip option)
 
-    pub use_fast_path: bool,           //default = false
+    pub use_parallel_proposals: bool, //default = true (TODO: implement sequential slot option)
+    pub k: u64,                       //Max open conensus instances at a time.
+
+    pub use_fast_path: bool, //default = false
     pub fast_path_timeout: u64,
 
     pub use_ride_share: bool,
@@ -123,7 +123,7 @@ impl Default for Parameters {
 
             //Async simulation:
             simulate_asynchrony: false,
-            asynchrony_start: 20_000, //20 second in
+            asynchrony_start: 20_000,    //20 second in
             asynchrony_duration: 10_000, //10 seconds
         }
     }
@@ -143,10 +143,19 @@ impl Parameters {
         info!("Batch size set to {} B", self.batch_size);
         info!("Max batch delay set to {} ms", self.max_batch_delay);
 
-        info!("Fast path enabled? {}. Fast timeout: {}", self.use_fast_path, self.fast_path_timeout);
+        info!(
+            "Fast path enabled? {}. Fast timeout: {}",
+            self.use_fast_path, self.fast_path_timeout
+        );
         info!("Optimistic tips enabled? {}", self.use_optimistic_tips);
-        info!("Parallel Proposals enabled? {}. K: {}", self.use_parallel_proposals, self.k);
-        info!("Ride share enabled? {}. Car timeout: {}", self.use_ride_share, self.car_timeout);
+        info!(
+            "Parallel Proposals enabled? {}. K: {}",
+            self.use_parallel_proposals, self.k
+        );
+        info!(
+            "Ride share enabled? {}. Car timeout: {}",
+            self.use_ride_share, self.car_timeout
+        );
     }
 }
 
@@ -184,12 +193,13 @@ pub struct Authority {
     pub primary: PrimaryAddresses,
     /// Map of workers' id and their network addresses.
     pub workers: HashMap<WorkerId, WorkerAddresses>,
+    pub index: usize,
 }
 
 #[derive(Clone, Deserialize)]
 pub struct Committee {
     pub authorities: BTreeMap<PublicKey, Authority>,
-    //pub id_map: HashMap<PublicKey, u64>, //position 
+    //pub id_map: HashMap<PublicKey, u64>, //position
 }
 
 impl Import for Committee {}
@@ -199,8 +209,20 @@ impl Committee {
         Self {
             authorities: info
                 .into_iter()
-                .map(|(name, stake, address)| {
-                    let authority = Authority { stake, consensus: ConsensusAddresses { consensus_to_consensus: address }, primary: PrimaryAddresses { primary_to_primary: address, worker_to_primary: address }, workers: HashMap::new() };
+                .enumerate()
+                .map(|(idx, (name, stake, address))| {
+                    let authority = Authority {
+                        stake,
+                        consensus: ConsensusAddresses {
+                            consensus_to_consensus: address,
+                        },
+                        primary: PrimaryAddresses {
+                            primary_to_primary: address,
+                            worker_to_primary: address,
+                        },
+                        workers: HashMap::new(),
+                        index: idx,
+                    };
                     (name, authority)
                 })
                 .collect(),
@@ -329,8 +351,10 @@ impl Committee {
             .collect()
     }
 
-    pub fn address(&self, name: &PublicKey) -> Option<SocketAddr> {
-        self.authorities.get(name).map(|x| x.consensus.consensus_to_consensus)
+    pub fn address(&self, name: &PublicKey) -> Option<(SocketAddr, usize)> {
+        self.authorities
+            .get(name)
+            .map(|x| (x.consensus.consensus_to_consensus, x.index))
     }
 
     pub fn broadcast_addresses(&self, myself: &PublicKey) -> Vec<(PublicKey, SocketAddr)> {
@@ -339,6 +363,13 @@ impl Committee {
             .filter(|(name, _)| name != &myself)
             .map(|(name, x)| (*name, x.consensus.consensus_to_consensus))
             .collect()
+    }
+
+    pub fn index(&self, name: &PublicKey) -> usize {
+        self.authorities
+            .iter()
+            .position(|(n, _)| name == n)
+            .unwrap()
     }
 }
 
