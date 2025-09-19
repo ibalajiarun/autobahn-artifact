@@ -21,6 +21,7 @@ from benchmark.utils import BenchError, Print, PathMaker, progress_bar
 from benchmark.commands import CommandMaker
 from benchmark.logs import LogParser, ParseError
 from benchmark.gcp_instance import InstanceManager
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 class FabricError(Exception):
@@ -232,15 +233,20 @@ class Bench:
         # Cleanup all nodes and upload configuration files.
         names = names[: len(names) - bench_parameters.faults]
         progress = progress_bar(names, prefix="Uploading config files:")
-        for i, name in enumerate(progress):
+        def upload_config(i, name):
             for ip in committee.ips(name):
                 c = Connection(
-                    ip, user=self.settings.username, connect_kwargs=self.connect
+                   ip, user=self.settings.username, connect_kwargs=self.connect
                 )
                 c.run(f"{CommandMaker.cleanup()} || true", hide=True)
                 c.put(PathMaker.committee_file(), ".")
                 c.put(PathMaker.key_file(i), ".")
                 c.put(PathMaker.parameters_file(), ".")
+
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(upload_config, i, name) for i, name in enumerate(progress)]
+            for future in as_completed(futures):
+                future.result(timeout=300)
 
         return committee
 
@@ -257,22 +263,29 @@ class Bench:
         Print.info("Booting clients...")
         workers_addresses = committee.workers_addresses(faults)
         rate_share = ceil(rate / committee.workers())
-        for i, addresses in enumerate(workers_addresses):
-            for id, address in addresses:
-                host = Committee.ip(address)
-                cmd = CommandMaker.run_client(
-                    address,
-                    bench_parameters.tx_size,
-                    rate_share,
-                    [x for y in workers_addresses for _, x in y],
-                )
-                print(cmd)
-                log_file = PathMaker.client_log_file(i, id)
-                self._background_run(host, cmd, log_file)
+        def run_client(i, id, address):
+            host = Committee.ip(address)
+            cmd = CommandMaker.run_client(
+                address,
+                bench_parameters.tx_size,
+                rate_share,
+                [x for y in workers_addresses for _, x in y],
+            )
+            print(cmd)
+            log_file = PathMaker.client_log_file(i, id)
+            self._background_run(host, cmd, log_file)
 
-        # Run the primaries (except the faulty ones).
+        with ThreadPoolExecutor() as executor:
+            futures = []
+            for i, addresses in enumerate(workers_addresses):
+                for id, address in addresses:
+                    futures.append(executor.submit(run_client, i, id, address))
+            for future in as_completed(futures):
+                future.result(timeout=300)
+
+        # Run the primaries (except the faulty ones) in parallel.
         Print.info("Booting primaries...")
-        for i, address in enumerate(committee.primary_addresses(faults)):
+        def run_primary(i, address):
             host = Committee.ip(address)
             cmd = CommandMaker.run_primary(
                 PathMaker.key_file(i),
@@ -285,22 +298,34 @@ class Bench:
             log_file = PathMaker.primary_log_file(i)
             self._background_run(host, cmd, log_file)
 
-        # Run the workers (except the faulty ones).
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(run_primary, i, address) for i, address in enumerate(committee.primary_addresses(faults))]
+            for future in as_completed(futures):
+                future.result(timeout=300)
+
+        # Run the workers (except the faulty ones) in parallel.
         Print.info("Booting workers...")
-        for i, addresses in enumerate(workers_addresses):
-            for id, address in addresses:
-                host = Committee.ip(address)
-                cmd = CommandMaker.run_worker(
-                    PathMaker.key_file(i),
-                    PathMaker.committee_file(),
-                    PathMaker.db_path(i, id),
-                    PathMaker.parameters_file(),
-                    id,  # The worker's id.
-                    debug=debug,
-                )
-                print(cmd)
-                log_file = PathMaker.worker_log_file(i, id)
-                self._background_run(host, cmd, log_file)
+        def run_worker(i, id, address):
+            host = Committee.ip(address)
+            cmd = CommandMaker.run_worker(
+                PathMaker.key_file(i),
+                PathMaker.committee_file(),
+                PathMaker.db_path(i, id),
+                PathMaker.parameters_file(),
+                id,  # The worker's id.
+                debug=debug,
+            )
+            print(cmd)
+            log_file = PathMaker.worker_log_file(i, id)
+            self._background_run(host, cmd, log_file)
+
+        with ThreadPoolExecutor() as executor:
+            futures = []
+            for i, addresses in enumerate(workers_addresses):
+                for id, address in addresses:
+                    futures.append(executor.submit(run_worker, i, id, address))
+            for future in as_completed(futures):
+                future.result(timeout=300)
 
         # Wait for all transactions to be processed.
         duration = bench_parameters.duration
@@ -412,10 +437,11 @@ class Bench:
         cmd = CommandMaker.clean_logs()
         subprocess.run([cmd], shell=True, stderr=subprocess.DEVNULL)
 
-        # Download log files.
+        # Download log files in parallel.
         workers_addresses = committee.workers_addresses(faults)
-        progress = progress_bar(workers_addresses, prefix="Downloading workers logs:")
-        for i, addresses in enumerate(progress):
+        progress = list(progress_bar(workers_addresses, prefix="Downloading workers logs:"))
+
+        def download_worker_logs(i, addresses):
             for id, address in addresses:
                 host = Committee.ip(address)
                 c = Connection(
@@ -430,14 +456,24 @@ class Bench:
                     local=PathMaker.worker_log_file(i, id),
                 )
 
-        primary_addresses = committee.primary_addresses(faults)
-        progress = progress_bar(primary_addresses, prefix="Downloading primaries logs:")
-        for i, address in enumerate(progress):
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(download_worker_logs, i, addresses) for i, addresses in enumerate(progress)]
+            for future in as_completed(futures):
+                future.result(timeout=300)
+
+        primary_addresses = list(progress_bar(committee.primary_addresses(faults), prefix="Downloading primaries logs:"))
+
+        def download_primary_log(i, address):
             host = Committee.ip(address)
             c = Connection(
                 host, user=self.settings.username, connect_kwargs=self.connect
             )
             c.get(PathMaker.primary_log_file(i), local=PathMaker.primary_log_file(i))
+
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(download_primary_log, i, address) for i, address in enumerate(primary_addresses)]
+            for future in as_completed(futures):
+                future.result(timeout=300)
 
         # Parse logs and return the parser.
         Print.info("Parsing logs and computing performance...")

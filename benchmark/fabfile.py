@@ -55,7 +55,7 @@ def local(ctx, debug=True):
 
 
 @task
-def create(ctx, nodes=6):
+def create(ctx, nodes=10):
     """Create a testbed"""
     try:
         InstanceManager.make().create_instances(nodes)
@@ -73,7 +73,7 @@ def destroy(ctx):
 
 
 @task
-def start(ctx, max=4):
+def start(ctx, max=10):
     """Start at most `max` machines per data center"""
     try:
         InstanceManager.make().start_instances(max)
@@ -113,11 +113,11 @@ def remote(ctx, debug=True):
     """Run benchmarks on AWS"""
     bench_params = {
         "faults": 0,
-        "nodes": [4],
+        "nodes": [100],
         "workers": 1,
         "co-locate": True,
-        "rate": [240_000],
-        "tx_size": 512,
+        "rate": [300_000, 350_000, 400_000, 500_000],
+        "tx_size": 310,
         "duration": 60,
         "runs": 1,
         # Unused
@@ -130,7 +130,7 @@ def remote(ctx, debug=True):
         "timeout_delay": 5_000,  # ms
         "header_size": 32,  # bytes
         "max_header_delay": 5_000,  # ms
-        "gc_depth": 50,  # rounds
+        "gc_depth": 100,  # rounds
         "sync_retry_delay": 5_000,  # ms
         "sync_retry_nodes": 3,  # number of nodes
         "batch_size": 500_000,  # bytes

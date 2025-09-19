@@ -236,17 +236,18 @@ class InstanceManager:
                         and self.client.get(
                             project=self.settings.project_id, zone=zone, instance=id
                         ).status
-                        == compute_v1.Instance.Status.SUSPENDED
+                        == "SUSPENDED"
                     ):
                         operation = self.client.resume(
                             project=self.settings.project_id, zone=zone, instance=id
                         )
                         ops.append((operation, id, zone))
                 target += 1
+            size = len(ops)
+            Print.heading(f"Starting {size} instances")
             for operation, id, zone in ops:
                 Print.info(f"Waiting for instance {id} in zone {zone} to be in RUNNING")
                 self._wait(operation, "RUNNING")
-            Print.heading(f"Starting {size} instances")
         except ClientError as e:
             raise BenchError("Failed to start instances", GCPError(e))
 
@@ -255,7 +256,7 @@ class InstanceManager:
             ids, _ = self._get(["RUNNING", "REPAIRING"])
             for zone, id_list in ids.items():
                 for id in id_list:
-                    self.client.suspend(
+                    self.client.stop(
                         project=self.settings.project_id, zone=zone, instance=id
                     )
             size = sum(len(x) for x in ids.values())

@@ -1,21 +1,38 @@
 {
     "key": {
         "name": "google_compute_engine",
-        "path": "/Users/balaji/.ssh/google_compute_engine"
+        "path": "/home/balaji/.ssh/google_compute_engine"
     },
     "port": 5000,
     "repo": {
         "name": "autobahn-artifact",
         "url": "https://github.com/neilgiri/autobahn-artifact.git",
-        "branch": "autobahn-blips"
+        "branch": "autobahn"
     },
     "project_id": "forge-gcp-multiregion-test",
     "username": "balaji",
     "instances": {
-        "type": "t2d-standard-4",
-        "regions": ["us-east1-b", "us-east5-a", "us-west1-b", "us-west4-a"],
+        "type": "n2d-standard-4",
+        "regions": [
+            "us-west1-a",
+            "europe-west4-a",
+            "asia-northeast3-a",
+            "southamerica-east1-a",
+            "us-east1-b",
+            "europe-southwest1-a",
+            "africa-south1-a",
+            "asia-south1-a",
+            "asia-southeast1-c",
+            "australia-southeast1-a"
+        ],
         "templates": [
-            "projects/forge-gcp-multiregion-test/global/instanceTemplates/autobahn-instance-template", 
+            "projects/forge-gcp-multiregion-test/global/instanceTemplates/autobahn-instance-template",
+            "projects/forge-gcp-multiregion-test/global/instanceTemplates/autobahn-instance-template",
+            "projects/forge-gcp-multiregion-test/global/instanceTemplates/autobahn-instance-template",
+            "projects/forge-gcp-multiregion-test/global/instanceTemplates/autobahn-instance-template",
+            "projects/forge-gcp-multiregion-test/global/instanceTemplates/autobahn-instance-template",
+            "projects/forge-gcp-multiregion-test/global/instanceTemplates/autobahn-instance-template",
+            "projects/forge-gcp-multiregion-test/global/instanceTemplates/autobahn-instance-template",
             "projects/forge-gcp-multiregion-test/global/instanceTemplates/autobahn-instance-template",
             "projects/forge-gcp-multiregion-test/global/instanceTemplates/autobahn-instance-template",
             "projects/forge-gcp-multiregion-test/global/instanceTemplates/autobahn-instance-template"
