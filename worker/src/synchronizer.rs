@@ -7,6 +7,7 @@ use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt as _;
 use log::{debug, error};
 use network::SimpleSender;
+use primary::Height;
 use primary::PrimaryWorkerMessage;
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -62,6 +63,7 @@ impl Synchronizer {
         sync_retry_nodes: usize,
         rx_message: Receiver<PrimaryWorkerMessage>,
     ) {
+        let our_id = committee.index(&name);
         tokio::spawn(async move {
             Self {
                 name,
@@ -72,7 +74,7 @@ impl Synchronizer {
                 sync_retry_delay,
                 sync_retry_nodes,
                 rx_message,
-                network: SimpleSender::new(),
+                network: SimpleSender::new(our_id),
                 round: Round::default(),
                 pending: HashMap::new(),
             }

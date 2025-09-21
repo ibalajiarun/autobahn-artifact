@@ -21,7 +21,7 @@ impl PrimaryConnector {
             Self {
                 primary_address,
                 rx_digest,
-                network: SimpleSender::new(),
+                network: SimpleSender::new(100),
             }
             .run()
             .await;

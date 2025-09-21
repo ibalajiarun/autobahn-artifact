@@ -28,17 +28,19 @@ pub struct Helper {
 impl Helper {
     pub fn spawn(
         id: WorkerId,
+        name: PublicKey,
         committee: Committee,
         store: Store,
         rx_request: Receiver<(Vec<Digest>, PublicKey)>,
     ) {
+        let our_id = committee.index(&name);
         tokio::spawn(async move {
             Self {
                 id,
                 committee,
                 store,
                 rx_request,
-                network: SimpleSender::new(),
+                network: SimpleSender::new(our_id),
             }
             .run()
             .await;

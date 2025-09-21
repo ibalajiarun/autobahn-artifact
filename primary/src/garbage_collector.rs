@@ -44,6 +44,7 @@ impl GarbageCollector {
             .map(|x| x.primary_to_worker)
             .collect();
 
+        let our_id = committee.index(&name);
         tokio::spawn(async move {
             Self {
                 store,
@@ -51,7 +52,7 @@ impl GarbageCollector {
                 rx_consensus,
                 tx_loopback,
                 addresses,
-                network: SimpleSender::new(),
+                network: SimpleSender::new(our_id),
             }
             .run()
             .await;

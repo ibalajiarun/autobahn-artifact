@@ -6,9 +6,10 @@ use futures::stream::StreamExt as _;
 use log::{info, warn};
 use rand::prelude::SliceRandom as _;
 use rand::rngs::SmallRng;
-use rand::SeedableRng as _;
+use rand::{RngCore, SeedableRng as _};
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::time::{Duration, Instant};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
@@ -24,19 +25,17 @@ pub struct SimpleSender {
     connections: HashMap<SocketAddr, Sender<Bytes>>,
     /// Small RNG just used to shuffle nodes and randomize connections (not crypto related).
     rng: SmallRng,
-}
-
-impl std::default::Default for SimpleSender {
-    fn default() -> Self {
-        Self::new()
-    }
+    our_id: usize,
+    start: Instant,
 }
 
 impl SimpleSender {
-    pub fn new() -> Self {
+    pub fn new(our_id: usize) -> Self {
         Self {
             connections: HashMap::new(),
             rng: SmallRng::from_entropy(),
+            our_id,
+            start: Instant::now(),
         }
     }
 
@@ -47,9 +46,21 @@ impl SimpleSender {
         tx
     }
 
+    fn drop_message(&mut self) -> bool {
+        if self.start.elapsed() > Duration::from_secs(150) && self.our_id < 5 {
+            let pct = self.rng.next_u32() % 100;
+            return pct < 1;
+        }
+        false
+    }
+
     /// Try (best-effort) to send a message to a specific address.
     /// This is useful to answer sync requests.
     pub async fn send(&mut self, address: SocketAddr, data: Bytes) {
+        if self.drop_message() {
+            return;
+        }
+
         // Try to re-use an existing connection if possible.
         if let Some(tx) = self.connections.get(&address) {
             if tx.send(data.clone()).await.is_ok() {
