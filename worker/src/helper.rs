@@ -3,11 +3,11 @@ use bytes::Bytes;
 use config::{Committee, WorkerId};
 use crypto::{Digest, PublicKey};
 use log::{debug, error, warn};
+use network::CancelHandler;
 use network::{ReliableSender, SimpleSender};
+use std::collections::HashMap;
 use store::Store;
 use tokio::sync::mpsc::Receiver;
-use network::CancelHandler;
-use std::collections::HashMap;
 
 #[cfg(test)]
 #[path = "tests/helper_tests.rs"]
@@ -33,17 +33,19 @@ pub struct Helper {
 impl Helper {
     pub fn spawn(
         id: WorkerId,
+        name: PublicKey,
         committee: Committee,
         store: Store,
         rx_request: Receiver<(Vec<Digest>, PublicKey)>,
     ) {
+        let our_id = committee.index(&name);
         tokio::spawn(async move {
             Self {
                 id,
                 committee,
                 store,
                 rx_request,
-                network: SimpleSender::new(),
+                network: SimpleSender::new(our_id),
                 //network: ReliableSender::new(),
                 cancel_handlers: Vec::new(),
             }
@@ -73,11 +75,11 @@ impl Helper {
                         /*let handler = self.network.send(address, Bytes::from(data)).await;
                         self.cancel_handlers.push(handler);*/
                         self.network.send(address, Bytes::from(data)).await;
-                    },
+                    }
                     Ok(None) => {
                         debug!("don't have digest {:?} in store", digest);
                         ()
-                    },
+                    }
                     Err(e) => error!("{}", e),
                 }
             }

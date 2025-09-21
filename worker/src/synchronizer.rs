@@ -6,10 +6,10 @@ use crypto::{Digest, PublicKey};
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt as _;
 use log::{debug, error};
-use primary::Height;
-use network::ReliableSender;
 use network::CancelHandler;
+use network::ReliableSender;
 use network::SimpleSender;
+use primary::Height;
 use primary::PrimaryWorkerMessage;
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -68,6 +68,7 @@ impl Synchronizer {
         sync_retry_nodes: usize,
         rx_message: Receiver<PrimaryWorkerMessage>,
     ) {
+        let our_id = committee.index(&name);
         tokio::spawn(async move {
             Self {
                 name,
@@ -78,7 +79,7 @@ impl Synchronizer {
                 sync_retry_delay,
                 sync_retry_nodes,
                 rx_message,
-                network: SimpleSender::new(),
+                network: SimpleSender::new(our_id),
                 //network: ReliableSender::new(),
                 round: Round::default(),
                 pending: HashMap::new(),
@@ -166,15 +167,15 @@ impl Synchronizer {
                         let serialized = bincode::serialize(&message).expect("Failed to serialize our own message");
 
                         debug!("Requesting sync for missing {:?}, address is {:?}", missing, address);
-                        
+
                         /*let handler = self.network.send(address, Bytes::from(serialized)).await;
                         self.cancel_handlers
-                            .entry(Digest::default()) 
+                            .entry(Digest::default())
                             .or_insert_with(Vec::new)
                             .push(handler);*/
 
                         self.network.send(address, Bytes::from(serialized)).await;
-                        
+
                     },
                     PrimaryWorkerMessage::Cleanup(round) => {
                         // Keep track of the primary's round number.
@@ -238,7 +239,7 @@ impl Synchronizer {
                             .lucky_broadcast(addresses, Bytes::from(serialized), self.sync_retry_nodes)
                             .await;
                         self.cancel_handlers
-                            .entry(self.id) 
+                            .entry(self.id)
                             .or_insert_with(Vec::new)
                             .push(handler);*/
                     }
