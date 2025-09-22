@@ -216,6 +216,7 @@ impl Worker {
             self.parameters.affected_nodes.clone(),
             self.committee.authorities.keys().cloned().collect(),
             self.name.clone(),
+            self.committee.clone(),
         );
 
         // // The `QuorumWaiter` waits for 2f authorities to acknowledge reception of the batch. It then forwards

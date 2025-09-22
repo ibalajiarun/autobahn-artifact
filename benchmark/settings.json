@@ -6,7 +6,7 @@
     "port": 5000,
     "repo": {
         "name": "autobahn-artifact",
-        "url": "https://github.com/neilgiri/autobahn-artifact.git",
+        "url": "https://github.com/ibalajiarun/autobahn-artifact.git",
         "branch": "autobahn"
     },
     "project_id": "forge-gcp-multiregion-test",

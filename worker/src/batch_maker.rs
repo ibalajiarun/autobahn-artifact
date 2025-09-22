@@ -4,6 +4,7 @@
 use crate::quorum_waiter::QuorumWaiterMessage;
 use crate::worker::WorkerMessage;
 use bytes::Bytes;
+use config::Committee;
 //#[cfg(feature = "benchmark")]
 use crypto::Digest;
 use crypto::PublicKey;
@@ -121,6 +122,7 @@ impl BatchMaker {
         affected_nodes: VecDeque<u64>,
         keys: Vec<PublicKey>,
         name: PublicKey,
+        committee: Committee,
     ) {
         let our_id = committee.index(&name);
         tokio::spawn(async move {
