@@ -121,9 +121,9 @@ def remote(ctx, debug=True):
         "nodes": [100],
         "workers": 1,
         "co-locate": True,
-        "rate": [300_000, 350_000, 400_000, 500_000],
+        "rate": [18_000],
         "tx_size": 310,
-        "duration": 60,
+        "duration": 150,
         "runs": 1,
         # Unused
         "simulate_partition": False,
