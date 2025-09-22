@@ -5,6 +5,7 @@ from multiprocessing import Pool
 from os.path import join
 from re import findall, search
 from statistics import mean
+from collections import defaultdict
 
 from benchmark.utils import Print
 
@@ -179,17 +180,18 @@ class LogParser:
         bps = bytes / duration
         tps = bps / self.size[0]
 
-        for sent, received in zip(self.sent_samples, self.received_samples):
-            bytes = 0
-            for tx_id, batch_id in received.items():
-                if batch_id in self.sizes:
-                    assert tx_id in sent  # We receive txs that we sent.
-                    bytes += self.sizes[batch_id]
-            bps = bytes / (max(received.values()) - min(sent.values()))
+        # Buckets self.commits per second where the value is the timestamp  
+        buckets = defaultdict(list)
+        for k, v in self.commits.items():
+            sec = int(v - start)
+            buckets[sec] += [k]
+        # For each second, compute the tps and bps
+        for sec, txs in buckets.items():
+            bytes = sum(self.sizes[k] for k in txs if k in self.sizes)
+            bps = bytes / duration
             tps = bps / self.size[0]
             list_tps += [tps]
         
-        list_tps.sort(key=lambda tup: tup[0])
         with open('tps.txt', 'w') as f:
             for line in list_tps:
                 f.write(str(line) + '\n')

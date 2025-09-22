@@ -44,8 +44,13 @@ def local(ctx, debug=True):
         "use_ride_share": False,
         "car_timeout": 5_000,
         "simulate_asynchrony": False,
-        "asynchrony_start": 15_000,  # ms
-        "asynchrony_duration": 3_000,  # ms
+        "asynchrony_type": [0],
+        "affected_nodes": [1],
+        "egress_penalty": 200,
+        "asynchrony_start": [15_000],  # ms
+        "asynchrony_duration": [3_000],  # ms
+        "use_fast_sync": False,
+        "use_exponential_timeouts": False,
     }
     try:
         ret = LocalBench(bench_params, node_params).run(debug)
