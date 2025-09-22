@@ -104,7 +104,7 @@ impl HeaderWaiter {
                 rx_synchronizer,
                 tx_core,
                 tx_consensus_loopback,
-                network: SimpleSender::new(),
+                network: SimpleSender::new(our_id),
                 parent_requests: HashMap::new(),
                 header_requests: HashMap::new(),
                 batch_requests: HashMap::new(),

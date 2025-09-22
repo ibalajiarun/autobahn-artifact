@@ -29,14 +29,16 @@ impl Helper {
         store: Store,
         rx_primaries_certs: Receiver<(Vec<Digest>, PublicKey)>,
         rx_primaries_headers: Receiver<(Vec<Digest>, PublicKey)>,
+        name: PublicKey,
     ) {
+        let our_id = committee.index(&name);
         tokio::spawn(async move {
             Self {
                 committee,
                 store,
                 rx_primaries_certs,
                 rx_primaries_headers,
-                network: SimpleSender::new(),
+                network: SimpleSender::new(our_id),
             }
             .run()
             .await;

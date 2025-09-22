@@ -4,6 +4,7 @@
 use crate::quorum_waiter::QuorumWaiterMessage;
 use crate::worker::WorkerMessage;
 use bytes::Bytes;
+use config::Committee;
 #[cfg(feature = "benchmark")]
 use crypto::Digest;
 use crypto::PublicKey;
@@ -58,6 +59,8 @@ impl BatchMaker {
         //tx_message: Sender<QuorumWaiterMessage>, //sender channel to worker.QuorumWaiter
         tx_batch: Sender<Vec<u8>>, // sender channel to worker.Processor
         workers_addresses: Vec<(PublicKey, SocketAddr)>,
+        name: PublicKey,
+        committee: Committee,
     ) {
         let our_id = committee.index(&name);
         tokio::spawn(async move {

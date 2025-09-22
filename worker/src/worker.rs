@@ -177,6 +177,8 @@ impl Worker {
                 .iter()
                 .map(|(name, addresses)| (*name, addresses.worker_to_worker))
                 .collect(),
+            self.name.clone(),
+            self.committee.clone(),
         );
 
         // // The `QuorumWaiter` waits for 2f authorities to acknowledge reception of the batch. It then forwards
