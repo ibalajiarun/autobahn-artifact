@@ -193,7 +193,6 @@ pub struct Authority {
     pub primary: PrimaryAddresses,
     /// Map of workers' id and their network addresses.
     pub workers: HashMap<WorkerId, WorkerAddresses>,
-    pub index: usize,
 }
 
 #[derive(Clone, Deserialize)]
@@ -221,7 +220,6 @@ impl Committee {
                             worker_to_primary: address,
                         },
                         workers: HashMap::new(),
-                        index: idx,
                     };
                     (name, authority)
                 })
@@ -351,10 +349,10 @@ impl Committee {
             .collect()
     }
 
-    pub fn address(&self, name: &PublicKey) -> Option<(SocketAddr, usize)> {
+    pub fn address(&self, name: &PublicKey) -> Option<SocketAddr> {
         self.authorities
             .get(name)
-            .map(|x| (x.consensus.consensus_to_consensus, x.index))
+            .map(|x| x.consensus.consensus_to_consensus)
     }
 
     pub fn broadcast_addresses(&self, myself: &PublicKey) -> Vec<(PublicKey, SocketAddr)> {
