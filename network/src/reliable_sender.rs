@@ -36,6 +36,7 @@ pub struct ReliableSender {
     rng: SmallRng,
     our_id: usize,
     start: Instant,
+    count: u32,
 }
 
 // impl std::default::Default for ReliableSender {
@@ -51,6 +52,7 @@ impl ReliableSender {
             rng: SmallRng::from_entropy(),
             our_id,
             start: Instant::now(),
+            count: 0,
         }
     }
 
@@ -64,6 +66,10 @@ impl ReliableSender {
     fn drop_message(&mut self) -> bool {
         if self.start.elapsed() > Duration::from_secs(75) && self.our_id < 100 {
             let pct = self.rng.next_u32() % 100;
+            if self.count % 100 == 0 {
+                warn!("checking drop: {}", pct)
+            }
+            self.count += 1;
             return pct < 1;
         }
         false
