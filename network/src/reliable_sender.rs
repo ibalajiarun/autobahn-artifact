@@ -62,7 +62,7 @@ impl ReliableSender {
     }
 
     fn drop_message(&mut self) -> bool {
-        if self.start.elapsed() > Duration::from_secs(30) && self.our_id < 5 {
+        if self.start.elapsed() > Duration::from_secs(30) && self.our_id < 100 {
             let pct = self.rng.next_u32() % 100;
             return pct < 1;
         }
