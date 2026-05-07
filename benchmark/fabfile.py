@@ -17,12 +17,12 @@ def local(ctx, debug=True):
         "nodes": [4],
         "workers": 1,
         "co-locate": True,
-        "rate": [240_000],
+        "rate": [18_000],
         "tx_size": 512,
-        "duration": 60,
+        "duration": 300,
         "runs": 1,
         # Unused
-        "simulate_partition": True,
+        "simulate_partition": False,
         "partition_start": 5,
         "partition_duration": 5,
         "partition_nodes": 1,
@@ -39,7 +39,7 @@ def local(ctx, debug=True):
         "use_optimistic_tips": True,
         "use_parallel_proposals": True,
         "k": 4,
-        "use_fast_path": True,
+        "use_fast_path": False,
         "fast_path_timeout": 5_000,
         "use_ride_share": False,
         "car_timeout": 5_000,
@@ -148,8 +148,13 @@ def remote(ctx, debug=True):
         "use_ride_share": False,
         "car_timeout": 5_000,
         "simulate_asynchrony": False,
-        "asynchrony_start": 15_000,  # ms
-        "asynchrony_duration": 3_000,  # ms
+        "asynchrony_start": [15_000],  # ms
+        "asynchrony_duration": [3_000],  # ms
+        "asynchrony_type": [0],
+        "affected_nodes": [1],
+        "egress_penalty": 200,
+        "use_fast_sync": False,
+        "use_exponential_timeouts": False,
     }
     try:
         Bench(ctx).run(bench_params, node_params, debug)

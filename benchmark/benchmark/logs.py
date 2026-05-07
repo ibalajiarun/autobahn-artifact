@@ -182,9 +182,11 @@ class LogParser:
 
         # Buckets self.commits per second where the value is the timestamp  
         buckets = defaultdict(list)
+        print(self.commits.values())
         for k, v in self.commits.items():
             sec = int(v - start)
             buckets[sec] += [k]
+        print(buckets)
         # For each second, compute the tps and bps
         for sec, txs in buckets.items():
             bytes = sum(self.sizes[k] for k in txs if k in self.sizes)

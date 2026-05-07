@@ -7,7 +7,7 @@
     "repo": {
         "name": "autobahn-artifact",
         "url": "https://github.com/ibalajiarun/autobahn-artifact.git",
-        "branch": "autobahn"
+        "branch": "autobahn-blips"
     },
     "project_id": "forge-gcp-multiregion-test",
     "username": "balaji",
